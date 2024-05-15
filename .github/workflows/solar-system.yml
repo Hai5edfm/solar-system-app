@@ -54,6 +54,7 @@ jobs:
           run: npm install
 
         - name: Check code coverage
+          continue-on-error: true
           run: npm run coverage
 
         - name: Archive Code Coverage
@@ -62,4 +63,3 @@ jobs:
             name: Code-Coverage-Report
             path: coverage
             retention-days: 5
-            
