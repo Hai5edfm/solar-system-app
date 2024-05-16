@@ -78,6 +78,10 @@ jobs:
       steps:
         - name: Checkout Repository
           uses: actions/checkout@v4
+        - name: Set repository owner in lowercase
+          id: set_lowercase_owner
+          run: echo "::set-output name=lowercase_owner::${GITHUB_REPOSITORY_OWNER,,}"
+  
         - name: Dockerhub login
           uses: docker/login-action@v2.2.0
           with:
@@ -118,4 +122,4 @@ jobs:
             push: true
             tags: | 
               ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
-              ghcr.io/${{ github.repository_owner.lowercase }}/solar-system:${{ github.sha }}
+              ghcr.io/${{ steps.set_lowercase_owner.outputs.lowercase_owner }}/solar-system:${{ github.sha }}
