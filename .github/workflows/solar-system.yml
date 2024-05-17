@@ -6,28 +6,122 @@ on:
     branches:
       - main
       - 'feature/*'
-    
+
 jobs:
     unit-testing:
-        name: Unit Testing
-        runs-on: ubuntu-latest
-        steps:
+      name: Unit Testing
+      strategy:
+        matrix:
+          nodejs_version: [18, 20]
+          operating_system: [ubuntu-latest, windows-latest]
+          exclude:
+            - nodejs_version: 18
+              operating_system: windows-latest
+      runs-on: ${{ matrix.operating_system }}
+      steps:
         - name: Checkout Repository
           uses: actions/checkout@v4
 
-        - name: Setup NodeJS Version
+        - name: Setup NodeJS Version - ${{ matrix.nodejs_version }}
           uses: actions/setup-node@v3
           with:
-            node-version: 20
-    
+            node-version: ${{ matrix.nodejs_version }}
+        - name: Cache NPM dependencies
+          uses: actions/cache@v3
+          with:
+            path: node_modules
+            key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
         - name: Install Dependencies
           run: npm install
-    
         - name: Unit Testing
-          run: npm test
-          
+          id: node_js_unit_test
+          run: npm test   
         - name: Archive Test Result
+          if: failure() && (steps.node_js_unit_test.outcome == 'failure' || steps.node_js_unit_test.conclusion == 'success')
           uses: actions/upload-artifact@v3
           with:
             name: Mocha-Test-Result
             path: test-results.xml
+    code-coverage:
+      name: Code Coverage
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+        
+        - name: Setup NodeJS Version - 18
+          uses: actions/setup-node@v3
+          with:
+            node-version: 18
+        - name: Cache NPM dependencies
+          uses: actions/cache@v3
+          with:
+            path: node_modules
+            key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+        - name: Install Dependencies
+          run: npm install
+
+        - name: Check code coverage
+          continue-on-error: true
+          run: npm run coverage
+
+        - name: Archive Code Coverage
+          uses: actions/upload-artifact@v3
+          with:
+            name: Code-Coverage-Report
+            path: coverage
+            retention-days: 5
+    docker:
+      name: Containerize Application
+      needs: [unit-testing, code-coverage]
+      permissions:
+        packages: write
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+        - name: Set repository owner in lowercase
+          id: set_lowercase_owner
+          run: echo "::set-output name=lowercase_owner::${GITHUB_REPOSITORY_OWNER,,}"
+  
+        - name: Dockerhub login
+          uses: docker/login-action@v2.2.0
+          with:
+            username: ${{ vars.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_PASSWORD }}
+        - name: GHCR login
+          uses: docker/login-action@v2.2.0
+          with:
+            registry: ghcr.io
+            username: ${{ github.repository_owner }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+        - name: Docker Build for testing
+          uses: docker/build-push-action@v4
+          with:
+            context: .
+            push: false
+            tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+        - name: Docker Image Testing
+          run: |
+            docker images
+            docker run --name solar-system-app -d \
+              -p 3000:3000 \
+              -e MONGO_URI=$MONGO_URI \
+              -e MONOG_USERNAME=$MONGO_USERNAME \
+              -e MONGO_PASSWORD=$MONGO_PASSWORD \
+              ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+
+            export IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' solar-system-app)
+            echo $IP
+
+            echo Testing Image URL using wget
+            wget -q -O - 127.0.0.1:3000/live | grep live
+
+        - name: Container Registry Push
+          uses: docker/build-push-action@v4
+          with:
+            context: .
+            push: true
+            tags: | 
+              ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+              ghcr.io/${{ steps.set_lowercase_owner.outputs.lowercase_owner }}/solar-system:${{ github.sha }}
