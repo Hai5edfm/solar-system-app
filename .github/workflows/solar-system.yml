@@ -204,12 +204,11 @@ jobs:
     needs: [dev-deploy]
     runs-on: ubuntu-latest
     steps:
-      - env:
-        OUTPUT1: ${{ needs.dev-deploy.outputs.URL }}
       - name: Test URL output using CURL and JQ
+        env:
+          OUTPUT1: ${{ needs.dev-deploy.outputs.URL }}
         run: |
           echo ${{ env.URL }}
           echo "----------------------"
           curl https://${{ env.URL }}/live -s -k | jq -r .status | grep -i live
 
-          
