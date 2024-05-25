@@ -215,7 +215,7 @@ jobs:
           echo "----------------------"
           curl https://${{ env.URL }}/live -s -k | jq -r .status | grep -i live
   prod-deploy:
-    name: Deploy to Development Environment
+    name: Deploy to Prod Environment
     needs: [docker]
     environment:
       name: production
@@ -274,7 +274,7 @@ jobs:
         run: |
           echo "URL=$(kubectl -n ${{ vars.NAMESPACE }} get ingress solar-system -o jsonpath='{.spec.rules[0].host}')" >> $GITHUB_OUTPUT
   prod-testing:
-    name: Dev Integration testing
+    name: Production Integration testing
     needs: [prod-deploy]
     runs-on: ubuntu-latest
     steps:
