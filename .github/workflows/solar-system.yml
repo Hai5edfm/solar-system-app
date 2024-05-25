@@ -218,7 +218,7 @@ jobs:
     name: Deploy to Prod Environment
     needs: [integration-testing]
     environment:
-      name: production
+      name: Production
       url: https://${{ steps.set_ingress_url.outputs.URL }}
     runs-on: ubuntu-latest
     outputs:
