@@ -146,6 +146,9 @@ jobs:
   dev-deploy:
     name: Deploy to Development Environment
     needs: [docker]
+    environment:
+      name: Development
+      url: https://${{ steps.set_ingress_url.outputs.URL }}
     runs-on: ubuntu-latest
     outputs:
       URL: ${{ steps.set_ingress_url.outputs.URL }}
