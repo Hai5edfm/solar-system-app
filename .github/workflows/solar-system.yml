@@ -216,7 +216,7 @@ jobs:
           curl https://${{ env.URL }}/live -s -k | jq -r .status | grep -i live
   prod-deploy:
     name: Deploy to Prod Environment
-    needs: [docker]
+    needs: [integration-testing]
     environment:
       name: production
       url: https://${{ steps.set_ingress_url.outputs.URL }}
