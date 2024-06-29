@@ -5,7 +5,7 @@ on:
 jobs:
   reuse-deploy:
     environment:
-      name: development
+      name: Development
       url: https://${{ steps.set_ingress_url.outputs.URL }}
     runs-on: ubuntu-latest
     outputs:
