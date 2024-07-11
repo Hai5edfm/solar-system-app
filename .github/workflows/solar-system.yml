@@ -150,6 +150,11 @@ jobs:
     secrets:
       k8s-kubeconfig: ${{ secrets.KUBECONFIG }}
       mongodb-password: ${{ secrets.MONGO_PASSWORD }}
+    with:
+      mongodb-url: ${{ vars.MONGO_URI }}
+      environment: Development
+      kubectl-version: 'v1.26.0'
+      k8s-manifest-dir: 'kubernetes/development/'
 
   integration-testing:
     if: contains(github.ref, 'feature/')
@@ -168,62 +173,15 @@ jobs:
     if: github.ref == 'refs/heads/main'
     name: Deploy to Prod Environment
     needs: [docker]
-    environment:
-      name: Production
-      url: https://${{ steps.set_ingress_url.outputs.URL }}
-    runs-on: ubuntu-latest
-    outputs:
-      URL: ${{ steps.set_ingress_url.outputs.URL }}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Install Kubectl CLI
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'v1.26.0'
-      - name: Set Kube config
-        uses: azure/k8s-set-context@v4
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBECONFIG }}
-      - name: Fetch kubernetes Cluster details
-        run: |
-          kubectl version
-          echo -------------------
-          kubectl get nodes
-      - name: Save Nginx ingress controller IP as a GITHUB Environment variable
-        run: |
-            echo "INGRESS_IP=$(kubectl -n ingress-nginx get services nginx-ingress-ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')" >> $GITHUB_ENV
-      - name: Replace tokens in Manifest files
-        uses: cschleiden/replace-tokens@v1
-        with:
-          tokenPrefix: '_{_'
-          tokenSuffix: '_}_'
-          files: '["kubernetes/production/*.yaml"]'
-        env:
-          NAMESPACE: ${{ vars.NAMESPACE }}
-          REPLICAS: ${{ vars.REPLICAS }}
-          IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
-          INGRESS_IP: ${{ env.INGRESS_IP }}
-      - name: Check files
-        run: |
-          cat kubernetes/production/*.yaml
-      - name: Create mongoDB secret
-        run: |
-          kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
-            --from-literal=MONGO_URI=${{ env.MONGO_URI }} \
-            --from-literal=MONGO_USERNAME=${{ vars.MONGO_USERNAME }} \
-            --from-literal=MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
-            --save-config \
-            --dry-run=client \
-            -o yaml | kubectl apply -f -
-      - name: Deploy to production Environment
-        run: |
-          kubectl apply -f kubernetes/production
-      - name: Set App Ingress Host URL
-        id: set_ingress_url
-        run: |
-          echo "URL=$(kubectl -n ${{ vars.NAMESPACE }} get ingress solar-system -o jsonpath='{.spec.rules[0].host}')" >> $GITHUB_OUTPUT
+    uses: ./.github/workflows/reusable-deployment.yml
+    secrets:
+      k8s-kubeconfig: ${{ secrets.KUBECONFIG }}
+      mongodb-password: ${{ secrets.MONGO_PASSWORD }}
+    with:
+      mongodb-url: ${{ vars.MONGO_URI }}
+      environment: Production
+      kubectl-version: 'v1.26.0'
+      k8s-manifest-dir: 'kubernetes/production/'
   prod-testing:
     if: github.ref == 'refs/heads/main'
     name: Production Integration testing
