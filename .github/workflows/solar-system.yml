@@ -164,7 +164,7 @@ jobs:
     steps:
       - name: Test URL output using CURL and JQ
         env:
-          URL: ${{ needs.dev-deploy.outputs.URL }}
+          URL: ${{ needs.dev-deploy.outputs.application-url }}
         run: |
           echo ${{ env.URL }}
           echo "----------------------"
@@ -190,7 +190,7 @@ jobs:
     steps:
       - name: Test URL output using CURL and JQ
         env:
-          URL: ${{ needs.prod-deploy.outputs.URL }}
+          URL: ${{ needs.prod-deploy.outputs.application-url }}
         run: |
           echo ${{ env.URL }}
           echo "----------------------"
