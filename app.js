@@ -16,13 +16,9 @@ mongoose.connect('mongodb+srv://supercluster.d83jj.mongodb.net/superData', {
     pass: 'SuperPassword',
     useNewUrlParser: true,
     useUnifiedTopology: true
-}, function(err) {
-    if (err) {
-        console.log("error!! " + err)
-    } else {
-      //  console.log("MongoDB Connection Successful")
-    }
 })
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('Connection error:', err));
 
 var Schema = mongoose.Schema;
 
@@ -38,20 +34,22 @@ var planetModel = mongoose.model('planets', dataSchema);
 
 
 
-app.post('/planet',   function(req, res) {
-   // console.log("Received Planet ID " + req.body.id)
-    planetModel.findOne({
-        id: req.body.id
-    }, function(err, planetData) {
-        if (err) {
-            alert("Ooops, We only have 9 planets and a sun. Select a number from 0 - 9")
-            res.send("Error in Planet Data")
+app.post('/planet', async function(req, res) {
+    try {
+        const planetData = await planetModel.findOne({
+            id: req.body.id
+        });
+        
+        if (!planetData) {
+            res.status(404).send("Planet not found");
         } else {
             res.send(planetData);
         }
-    })
-})
-
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Error in Planet Data");
+    }
+});
 app.get('/',   async (req, res) => {
     res.sendFile(path.join(__dirname, '/', 'index.html'));
 });
